@@ -23,10 +23,12 @@ use PGresponsegroup;
 use PGrandom;
 use PGalias;
 use PGloadfiles;
+use AnswerHash;
 use WeBWorK::PG::IO(); # don't important any command directly
 use Tie::IxHash;
-use MIME::Base64 qw( encode_base64 decode_base64);
-use PGUtil;
+use WeBWorK::Debug;
+use MIME::Base64();
+use PGUtil();
 
 ##################################
 # PGcore object
@@ -41,12 +43,13 @@ sub pretty_print {
     my $self = shift;
     my $input = shift;
     my $displayMode = shift;
+    my $level       = shift;
 
     if (!PGUtil::not_null($displayMode) && ref($self) eq 'PGcore') {
-	$displayMode = $self->{displayMode};
+		$displayMode = $self->{displayMode};
     }
     warn "displayMode not defined" unless $displayMode;
-    PGUtil::pretty_print($input, $displayMode); 
+    PGUtil::pretty_print($input, $displayMode, $level);  
 }
 
 sub new {
@@ -62,7 +65,7 @@ sub new {
 #		PG_ANSWERS                => [],  # holds answers with labels # deprecated
 #		PG_UNLABELED_ANSWERS      => [],  # holds unlabeled ans. #deprecated -replaced by PG_ANSWERS_HASH
 		PG_ANSWERS_HASH           => {},  # holds label=>answer pairs
-		PERSISTENCE_HASH           => {}, # holds other data, besides answers, which persists during a session and beyond
+		PERSISTENCE_HASH          => {}, # holds other data, besides answers, which persists during a session and beyond
 		answer_eval_count         => 0,
 		answer_blank_count        => 0,
 		unlabeled_answer_blank_count =>0,
@@ -98,23 +101,18 @@ sub new {
 sub initialize {
 	my $self = shift;
 	warn "environment is not defined in PGcore" unless ref($self->{envir}) eq 'HASH';
-	
-	
-	
-	
+
 	$self->{displayMode}                = $self->{envir}->{displayMode};
 	$self->{PG_original_problem_seed}   = $self->{envir}->{problemSeed};
 	$self->{PG_random_generator}        = new PGrandom( $self->{PG_original_problem_seed});
-
-    $self->{tempDirectory}        = $self->{envir}->{tempDirectory};
-	$self->{PG_problem_grader}    = $self->{envir}->{PROBLEM_GRADER_TO_USE};
-    $self->{PG_alias}             = PGalias->new($self->{envir},
-                                        WARNING_messages => $self->{WARNING_messages},
-                                        DEBUG_messages   => $self->{DEBUG_messages},
-                                                 
-	);
-	$self->{maketext} = 
-	  WeBWorK::Localize::getLoc($self->{envir}->{language});
+	$self->{problemSeed}                = $self->{PG_original_problem_seed};
+    $self->{tempDirectory}        		= $self->{envir}->{tempDirectory};
+	$self->{PG_problem_grader}    		= $self->{envir}->{PROBLEM_GRADER_TO_USE};
+    $self->{PG_alias}             		= PGalias->new($self->{envir},
+												WARNING_messages => $self->{WARNING_messages},
+												DEBUG_messages   => $self->{DEBUG_messages},                                           
+										);
+	$self->{maketext} =  WeBWorK::Localize::getLoc($self->{envir}->{language});
 	#$self->debug_message("PG alias created", $self->{PG_alias} );
     $self->{PG_loadMacros}        = new PGloadfiles($self->{envir});
 	$self->{flags} = {
@@ -330,6 +328,20 @@ sub LABELED_ANS{
   	$self->warning_message("<BR><B>Error in LABELED_ANS:|$label|</B>
   	      -- inputs must be references to AnswerEvaluator objects or subroutines<BR>")
 			unless ref($ans_eval) =~ /CODE/ or ref($ans_eval) =~ /AnswerEvaluator/  ;
+	if (ref($ans_eval) =~ /CODE/) {
+	  #
+	  #  Create an AnswerEvaluator that calls the given CODE reference and use that for $ans_eval.
+	  #  So we always have an AnswerEvaluator from here on.
+	  #
+	  my $cmp = new AnswerEvaluator;
+	  $cmp->install_evaluator(sub {
+	    my $ans = shift; my $checker = shift;
+	    my @args = ($ans->{student_ans});
+	    push(@args,ans_label=>$ans->{ans_label}) if defined($ans->{ans_label});
+	    $checker->(@args); # Call the original checker with the arguments that PG::Translator would have used
+	  },$ans_eval);
+	  $ans_eval = $cmp;
+	}
 	if (defined($self->{PG_ANSWERS_HASH}->{$label})  ){
 		$self->{PG_ANSWERS_HASH}->{$label}->insert(ans_label => $label, ans_eval => $ans_eval, active=>$self->{PG_ACTIVE});
 	} else {
@@ -444,7 +456,8 @@ sub record_ans_name {      # the labels in the PGanswer group and response group
 	my $value = shift;
 	#$self->internal_debug_message("PGcore::record_ans_name: $label $value");
 	my $response_group = new PGresponsegroup($label,$label,$value);
-	if (defined($self->{PG_ANSWERS_HASH}->{$label}) ) {
+	#$self->debug_message("adding a response group $response_group");
+	if (ref($self->{PG_ANSWERS_HASH}->{$label})=~/PGanswergroup/ ) {
 		$self->{PG_ANSWERS_HASH}->{$label}->replace(ans_label => $label, 
 		                                           response  => $response_group, 
 		                                           active    => $self->{PG_ACTIVE});
@@ -461,8 +474,9 @@ sub record_array_name {  # currently the same as record ans name
 	my $self = shift;
 	my $label = shift;
 	my $value = shift;
-	my $response_group = new PGresponsegroup($label,$label,$value);  
-	if (defined($self->{PG_ANSWERS_HASH}->{$label}) ) {
+	my $response_group = new PGresponsegroup($label,$label,$value); 
+	#$self->debug_message("adding a response group $response_group");
+	if (ref($self->{PG_ANSWERS_HASH}->{$label})=~/PGanswergroup/ ) {
 		$self->{PG_ANSWERS_HASH}->{$label}->replace(ans_label => $label, 
 		                                           response   => $response_group, 
 		                                           active     => $self->{PG_ACTIVE});
@@ -566,7 +580,7 @@ sub encode_base64 ($;$) {
 sub encode_pg_and_html {
     my $input = shift;
     $input = HTML::Entities::encode_entities($input,
-		   '<>"&\'\$\@\\\\`\\[*_\x00-\x1F\x7F-\xFF');
+		   '<>"&\'\$\@\\\\`\\[*_\x00-\x1F\x7F');
     return $input;
 }
 
@@ -574,7 +588,7 @@ sub encode_pg_and_html {
 
 There are three message channels
 	$PG->debug_message()   or in PG:  DEBUG_MESSAGE() 
-	$PG->warning_message() or in PG:  WARNING_MESSAGE()
+	$PG->warning_message() or in PG:  WARN_MESSAGE()
 	
 They behave the same way, it is simply convention as to how they are used.
 	
@@ -600,7 +614,7 @@ inside the PGcore object would report.
 sub debug_message {
     my $self = shift;
 	my @str = @_;
-	push @{$self->{DEBUG_messages}}, "<br/>", @str;
+	push @{$self->{DEBUG_messages}}, "<br/>\n", @str;
 }
 sub get_debug_messages {
 	my $self = shift;
@@ -676,16 +690,15 @@ sub insertGraph {
 	my $extension = ($WWPlot::use_png) ? '.png' : '.gif';
 	my $fileName = $graph->imageName  . $extension;
 	my $filePath = $self->convertPath("gif/$fileName");
-	my $templateDirectory = $self->{envir}->{templateDirectory};
+	my $templateDirectory = $self->{envir}{templateDirectory};
 	$filePath = $self->surePathToTmpFile( $filePath );
 	my $refreshCachedImages = $self->PG_restricted_eval(q!$refreshCachedImages!);
 	# Check to see if we already have this graph, or if we have to make it
 	if( not -e $filePath # does it exist?
-	  or ((stat "$templateDirectory"."$main::envir{probFileName}")[9] > (stat $filePath)[9]) # source has changed
-	  or $graph->imageName =~ /Undefined_Set/ # problems from SetMaker and its ilk should always be redone
+	  or ((stat "$templateDirectory".$self->{envir}{probFileName})[9] > (stat $filePath)[9]) # source has changed
+	  or $self->{envir}{setNumber} =~ /Undefined_Set/ # problems from SetMaker and its ilk should always be redone
 	  or $refreshCachedImages
 	) {
- 		#createFile($filePath, $main::tmp_file_permission, $main::numericalGroupID);
 		local(*OUTPUT);  # create local file handle so it won't overwrite other open files.
  		open(OUTPUT, ">$filePath")||warn ("$0","Can't open $filePath<BR>","");
  		chmod( 0777, $filePath);
@@ -699,12 +712,10 @@ sub insertGraph {
 
 		includePGtext
 		read_whole_problem_file
-		read_whole_file
 		convertPath
 		getDirDelim
 		fileFromPath
 		directoryFromPath
-		createFile
 		createDirectory
 
 =cut
@@ -719,10 +730,6 @@ sub includePGtext {
 sub read_whole_problem_file { 
 	my $self = shift;
 	WeBWorK::PG::IO::read_whole_problem_file(@_); 
- };
-sub read_whole_file { 
-	my $self = shift;
-	WeBWorK::PG::IO::read_whole_file(@_); 
  };
 sub convertPath { 
 	my $self = shift;
@@ -740,17 +747,16 @@ sub directoryFromPath {
 	my $self = shift;
 	WeBWorK::PG::IO::directoryFromPath(@_); 
  };
-sub createFile { 
-	my $self = shift;
-	WeBWorK::PG::IO::createFile(@_); 
- };
 sub createDirectory { 
 	my $self = shift;
 	WeBWorK::PG::IO::createDirectory(@_); 
  };
 sub AskSage {
 	my $self = shift;
-	WeBWorK::PG::IO::AskSage(@_);
+	my $python = shift;
+	my $options = shift;
+	$options->{curlCommand} = $self->{envir}->{externalCurlCommand};
+	WeBWorK::PG::IO::AskSage($python, $options);
 }
  
 sub tempDirectory {
