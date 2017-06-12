@@ -1495,7 +1495,7 @@ sub std_problem_grader {
 	}
 
 	if ($ansCount >	1 )	{
-		$problem_result{msg} = 'In order to	get	credit for this	problem	all	answers	must be	correct.' ;
+		$problem_result{msg} = maketext("In order to get credit for this problem all answers must be correct.");
 	}
 
 	unless ($form_options{answers_submitted} ==	1) {
@@ -1599,7 +1599,7 @@ sub std_problem_grader2 {
 	}
 
 	if ($ansCount >	1 )	{
-		$problem_result{msg} = 'In order to	get	credit for this	problem	all	answers	must be	correct.' ;
+		$problem_result{msg} = maketext("In order to get credit for this problem all answers must be correct.");
 	}
 
 	unless ($form_options{answers_submitted} ==	1) {
