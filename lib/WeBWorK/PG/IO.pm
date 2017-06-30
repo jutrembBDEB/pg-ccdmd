@@ -5,10 +5,13 @@
 
 package WeBWorK::PG::IO;
 use parent qw(Exporter);
-use JSON qw(decode_json);
+use JSON::PP qw(decode_json);
 use PGUtil qw(not_null);
 use WeBWorK::Utils qw(path_is_subdir);
 use WeBWorK::CourseEnvironment;
+
+$JSON::PP::true=1;
+$JSON::PP::false=0;
 
 my $CE = new WeBWorK::CourseEnvironment({
     webwork_dir => $ENV{WEBWORK_ROOT},
@@ -357,6 +360,7 @@ END
 		# is the returned something text from stdout (deprecated)
 		# have objects been returned in a WEBWORK variable?
 		my $success = $decoded->{success} if defined $decoded;
+
 		warn "success  is $success"  if $debug;
 		# the decoding process seems to change the string "true" to "1" sometimes -- we could enforce this
 		$success = 1 if defined $success and $success eq 'true';
