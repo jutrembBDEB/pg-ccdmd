@@ -391,11 +391,15 @@ our @ISA = ('Parser::List::Interval');
 sub _check {
   my $self = shift; my $context = $self->context;
   my $format = (($context->{answerHash}||{})->{enterIntervals} || $context->flag("enterIntervals"));
+  my $coords = $self->{coords};
   $self->Error("You must use parentheses to form open intervals")
     if $format eq "standard"  && ($self->{open} eq "]" || $self->{close} eq "[");
   $self->Error("You must use reversed brackets to form open intervals")
     if $format eq "alternate" && ($self->{open} eq "(" || $self->{close} eq ")");
-  $self->SUPER::_check(@_);
+  
+  $self->Error("Infinite enpoints must be open toto")
+    if (!($self->{open} eq "(" || $self->{open} eq "]") && $coords->[0]{isInfinite}) || (!($self->{close} eq ")" || $self->{close} eq "[") && $coords->[1]{isInfinite});
+  $self->SUPER::_check(@_) if (!$coords->[0]{isInfinite} && !$coords->[1]{isInfinite});
 }
 
 #
