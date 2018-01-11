@@ -7,6 +7,8 @@ package Value::Context;
 my $pkg = "Value::Context";
 use strict; no strict "refs";
 use UNIVERSAL;
+use WeBWorK::Localize;
+
 
 #
 #  Create a new Context object and initialize its data lists
@@ -133,17 +135,36 @@ sub clearError {
 #
 #  Set the error flags
 #
+sub _maketext {
+  my $msg = shift;
+  my @args = @_;
+
+  $msg =~s/\%[ds]/~~[_1]$args[0]~~/;
+  $msg =~s/\%[ds]/~~[_2]$args[1]~~/;
+  $msg =~s/\%[ds]/~~[_3]$args[2]~~/;
+  $msg =~s/\%[ds]/~~[_4]$args[3]~~/;
+  $msg =~s/\%[ds]/~~[_5]$args[4]~~/;
+
+  
+  return $msg;
+}
 sub setError {
   my $error = (shift)->{error};
   my ($message,$string,$pos,$more,$flag) = @_;
   my @args = ();
+
+  
   ($message,@args) = @{$message} if ref($message) eq 'ARRAY';
   $error->{original} = $message;
   while ($message && $error->{msg}{$message}) {$message = $error->{msg}{$message}}
   while ($more && $error->{msg}{$more}) {$more = $error->{msg}{$more}}
-  $message = sprintf($message,@args) if scalar(@args) > 0;
+  $message = _maketext($message)  if scalar(@args) == 0;
+  $message = _maketext($message,@args) if scalar(@args) > 0;
+  #$message = sprintf($message,@args) if scalar(@args) > 0;
+
   while ($message && $error->{msg}{$message}) {$message = $error->{msg}{$message}}
-  $message .= sprintf($more,$pos->[0]+1) if $more;
+  $more = _maketext($more,$pos->[0]+1) if $more;
+  #$message .= sprintf(maketext($more),$pos->[0]+1) if $more;
   $message = &{$error->{convert}}($message) if defined $error->{convert};
   $error->{message} = $message;
   $error->{string} = $string;
