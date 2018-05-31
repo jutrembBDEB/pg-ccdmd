@@ -29,4 +29,8 @@ sub _PGcourse_init {};
  #      if      not ($guest or $observe) ;
 
 #loadMacros("source.pl");
+sub negate {
+	return "\\lnot";
+};
+
 1;

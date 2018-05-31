@@ -1552,7 +1552,7 @@ sub cmp_list_compare {
 	             '<DIV STYLE="margin-left:1em">(('.$message.'))</DIV>');
       } else {push(@errors,$message)}
     } elsif ($showHints && $m > 1) {
-      push(@errors,"Your"."((".$nth.")) ((".$value.")) is incorrect");
+      push(@errors,"Your$nth $value is incorrect");
     }
   }
 
