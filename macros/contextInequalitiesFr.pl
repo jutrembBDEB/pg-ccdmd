@@ -1,6 +1,6 @@
 ################################################################################
 # WeBWorK Online Homework Delivery System
-# Copyright © 2000-2007 The WeBWorK Project, http://openwebwork.sf.net/
+# Copyright &copy; 2000-2018 The WeBWorK Project, http://openwebwork.sf.net/
 # $CVSHeader: pg/macros/contextInequalities.pl,v 1.23 2010/03/22 11:01:55 dpvc Exp $
 # 
 # This program is free software; you can redistribute it and/or modify it under
@@ -146,10 +146,10 @@ sub Init {
      '!=' => {precedence => .5, associativity => 'left', type => 'bin', string => ' != ', TeX => '\ne ',
               class => 'Inequalities::BOP::inequality', eval => 'evalNotEqualTo'},
 
-     'et' => {precedence => .45, associateivity => 'left', type => 'bin', string => " et ",
+     'et' => {precedence => .45, associativity => 'left', type => 'bin', string => " et ",
 	       TeX => '\hbox{ et }', class => 'Inequalities::BOP::and'},
 
-     'ou' => {precedence => .4, associateivity => 'left', type => 'bin', string => " ou ",
+     'ou' => {precedence => .4, associativity => 'left', type => 'bin', string => " ou ",
 	      TeX => '\hbox{ ou }', class => 'Inequalities::BOP::or'},
   );
   $context->operators->set(
@@ -254,44 +254,82 @@ sub _eval {
   return $I;
 }
 
+sub Infinity {
+  my $self = shift;
+  $self->Package("Infinity")->new($self->context);
+}
+
+sub checkInfinity {
+  my ($self, $x, $a, $I, $msg) = @_;
+  $self->Error("%s can't be $msg %s", $x->{name}, $I) if $a == $I;
+}
+
 sub evalLessThan {
   my ($self,$a,$b) = @_; my $context = $self->context;
-  my $I = Value::Infinity->new($context);
-  return $self->Package("Interval")->new($context,'(',-$I,$b,')') if $self->{varPos} eq 'lop';
-  return $self->Package("Interval")->new($context,'(',$a,$I,')');
+  my $I = $self->Infinity;
+  if ($self->{varPos} eq 'lop') {
+    $self->checkInfinity($a, $b, -$I, "less than");
+    return $self->Package("Interval")->new($context,'(',-$I,$b,')');
+  } else {
+    $self->checkInfinity($b, $a, $I, "greater than");
+    return $self->Package("Interval")->new($context,'(',$a,$I,')');
+  }
 }
 
 sub evalGreaterThan {
   my ($self,$a,$b) = @_; my $context = $self->context;
-  my $I = Value::Infinity->new;
-  return $self->Package("Interval")->new($context,'(',$b,$I,')')->with(reversed=>1) if $self->{varPos} eq 'lop';
-  return $self->Package("Interval")->new($context,'(',-$I,$a,')')->with(reversed=>1);
+  my $I = $self->Infinity;
+  if ($self->{varPos} eq 'lop') {
+    $self->checkInfinity($a, $b, $I, "greater than");
+    return $self->Package("Interval")->new($context,'(',$b,$I,')')->with(reversed=>1);
+  } else {
+    $self->checkInfinity($b, $a, -$I, "less than");
+    return $self->Package("Interval")->new($context,'(',-$I,$a,')')->with(reversed=>1);
+  }
 }
 
 sub evalLessThanOrEqualTo {
   my ($self,$a,$b) = @_; my $context = $self->context;
-  my $I = Value::Infinity->new;
-  return $self->Package("Interval")->new($context,'(',-$I,$b,']') if $self->{varPos} eq 'lop';
-  return $self->Package("Interval")->new($context,'[',$a,$I,')');
+  my $I = $self->Infinity;
+  if ($self->{varPos} eq 'lop') {
+    $self->checkInfinity($a, $b, $I, "equal to");
+    $self->checkInfinity($a, $b, -$I, "less than or equal to");
+    return $self->Package("Interval")->new($context,'(',-$I,$b,']');
+  } else {
+    $self->checkInfinity($b, $a, -$I, "equal to");
+    $self->checkInfinity($b, $a, $I, "greater than or equal to");
+    return $self->Package("Interval")->new($context,'[',$a,$I,')');
+  }
 }
 
 sub evalGreaterThanOrEqualTo {
   my ($self,$a,$b) = @_; my $context = $self->context;
-  my $I = Value::Infinity->new;
-  return $self->Package("Interval")->new($context,'[',$b,$I,')')->with(reversed=>1) if $self->{varPos} eq 'lop';
-  return $self->Package("Interval")->new($context,'(',-$I,$a,']')->with(reversed=>1);
+  my $I = $self->Infinity;
+  if ($self->{varPos} eq 'lop') {
+    $self->checkInfinity($a, $b, -$I, "equal to");
+    $self->checkInfinity($a, $b, $I, "greater than or equal to");
+    return $self->Package("Interval")->new($context,'[',$b,$I,')')->with(reversed=>1);
+  } else {
+    $self->checkInfinity($b, $a, $I, "equal to");
+    $self->checkInfinity($b, $a, -$I, "less than or equal to");
+    return $self->Package("Interval")->new($context,'(',-$I,$a,']')->with(reversed=>1);
+  }
 }
 
 sub evalEqualTo {
   my ($self,$a,$b) = @_; my $context = $self->context;
-  my $x = ($self->{varPos} eq 'lop' ? $b : $a);
-  return $self->Package("Set")->new($context,$x);
+  my ($x,$v) = ($self->{varPos} eq 'lop' ? ($a, $b) : ($b, $a));
+  my $I = $self->Infinity;
+  $self->checkInfinity($x, $v, $I, "equal to");
+  $self->checkInfinity($x, $v, -$I, "equal to");
+  return $self->Package("Set")->new($context,$v);
 }
 
 sub evalNotEqualTo {
   my ($self,$a,$b) = @_; my $context = $self->context;
   my $x = ($self->{varPos} eq 'lop' ? $b : $a);
-  my $I = Value::Infinity->new;
+  my $I = $self->Infinity;
+  return $self->Package("Interval")->new($context,'(',-$I,$I,')') if $x == $I || $x == -$I;
   return $self->Package("Union")->new($context,
             $self->Package("Interval")->new($context,'(',-$I,$x,')'),
             $self->Package("Interval")->new($context,'(',$x,$I,')')
@@ -528,6 +566,12 @@ sub sub {(shift)->apply("sub",@_)}
 sub reduce {(shift)->apply("reduce",@_)}
 sub intersect {(shift)->apply("intersect",@_)}
 
+sub compare {
+  my $self = shift; my $other = shift; my $flag = shift;
+  my $context = $self->context;
+  return Value::_compare($self->demote,$self->demote($other),$flag);
+}
+
 #
 #  The name to use for error messages in answer checkers
 #
@@ -696,6 +740,7 @@ sub display {
 	  push(@points,$X.$ne.$x->{data}[0]->$method($equation));
 	  $interval = $interval->with(isCopy=>1, data=>[$interval->value]) unless $interval->{isCopy};
 	  $interval->{data}[1] = $x->{data}[1];
+          $interval->{close} = $x->{close};
 	  $interval->{rightInfinite} = 1 if $x->{rightInfinite};
 	  next;
 	}

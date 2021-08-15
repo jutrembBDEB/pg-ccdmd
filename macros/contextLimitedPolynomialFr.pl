@@ -1,6 +1,6 @@
 ################################################################################
 # WeBWorK Online Homework Delivery System
-# Copyright © 2000-2007 The WeBWorK Project, http://openwebwork.sf.net/
+# Copyright &copy; 2000-2018 The WeBWorK Project, http://openwebwork.sf.net/
 # $CVSHeader$
 # 
 # This program is free software; you can redistribute it and/or modify it under
@@ -68,7 +68,7 @@ sub markPowers {
     $self->{index} = $vIndex->{$self->{name}};
     $self->{exponents} = [(0) x scalar(keys %{$vIndex})];
     $self->{exponents}[$self->{index}] = 1;
-  } elsif ($self->class eq 'Number') {
+  } elsif ($self->class eq 'Number' || ($self->isNeg && isConstant($self))) {
     my $vIndex = LimitedPolynomial::getVarIndex($self);
     $self->{exponents} = [(0) x scalar(keys %{$vIndex})];
   }
@@ -258,8 +258,8 @@ sub checkPolynomial {
   #$self->Error("In a polynomial, you can only divide by numbers")
     $self->Error("Dans un polynôme, vous devez diviser seulement par des nombres")
 	unless LimitedPolynomial::isConstant($r);
-  #$self->Error("You can only divide a single term by a number")
-$self->Error("Vous pouvez seulement diviser votre terme par un nombre")
+  #$self->Error("You can only divide a single term by a number in a simplified polynomial")
+$self->Error("Vous pouvez seulement diviser votre terme par un nombre dans un polynôme simplifié")
 
     if $l->{isPoly} && $l->{isPoly} != 2;
   $self->{isPoly} = $l->{isPoly};
@@ -282,8 +282,8 @@ our @ISA = qw(LimitedPolynomial::BOP Parser::BOP::power);
 sub checkPolynomial {
   my $self = shift;
   my ($l,$r) = ($self->{lop},$self->{rop});
-  #$self->Error("You can only raise a variable to a power in a polynomial")
-  $self->Error("Vous pouvez seulement élever des variables en exposant dans un polynôme")
+  #$self->Error("You can only raise a variable to a power in a simplifiedpolynomial")
+  $self->Error("Vous pouvez seulement élever des variables en exposant dans un polynôme simplifié")
     unless $l->class eq 'Variable';
   #$self->Error("Exponents must be constant in a polynomial")
   $self->Error("Les exposants doivent être des constantes dans un polynôme")
@@ -303,8 +303,8 @@ sub checkPolynomial {
 
 sub checkStrict {
   my $self = shift;
-  #$self->Error("You can only use powers of a variable in a polynomial");
-  $self->Error("Vous pouvez seulement élever des variables en exposant dans un polynôme");
+  #$self->Error("You can only use powers of a variable in a simplified polynomial");
+  $self->Error("Vous pouvez seulement élever des variables en exposant dans un polynôme simplifié");
 }
 
 ##############################################
@@ -325,6 +325,7 @@ sub _check {
   $self->{isPoly} = 2;
   $self->{powers} = $op->{powers}; delete $op->{powers};
   $self->{exponents} = $op->{exponents}; delete $op->{exponents};
+  $self->{powers}{1} = 1 if $op->class eq 'Variable';
   return if $self->checkPolynomial;
   #$self->Error("You can only use '%s' with monomials",$self->{def}{string});
   $self->Error("Vous pouvez utiliser '%s' seulement avec des monômes",$self->{def}{string});

@@ -1,6 +1,6 @@
 ################################################################################
 # WeBWorK Online Homework Delivery System
-# Copyright © 2000-2007 The WeBWorK Project, http://openwebwork.sf.net/
+# Copyright &copy; 2000-2018 The WeBWorK Project, http://openwebwork.sf.net/
 # $CVSHeader$
 # 
 # This program is free software; you can redistribute it and/or modify it under
@@ -201,7 +201,7 @@ sub _check {
   my $self = shift; my $p = $self->{rop}; my $def = $self->{def};
   my $checker = (defined($def->{checker}) ? $def->{checker} :  \&LimitedPowers::isInteger);
   $self->SUPER::_check(@_);
-  $self->Error("Les exposants doivent être $def->{message}")
+  $self->Error("Les exposants doivent être des $def->{message}")
     if $p->type ne 'Number' || !$p->{isConstant} || !&{$checker}($self,$p->eval);
 }
 
