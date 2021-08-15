@@ -19,7 +19,8 @@ sub _check {
     unless ($x->isNumber) {
       my $type = $x->type;
       $type = (($type =~ m/^[aeiou]/i)? "an ": "a ") . $type;
-      $self->{equation}->Error(["Coordinates of Vectors must be Numbers, not %s",$type]);
+     # $self->{equation}->Error(["Coordinates of Vectors must be Numbers, not %s",$type]);
+      $self->{equation}->Error("Coordinates of Vectors must be Numbers, not (($type))");
     }
   }
 }

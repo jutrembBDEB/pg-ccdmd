@@ -225,8 +225,8 @@ sub cmp_equal {
     return if $ans->{ignoreStrings} && (!Value::isValue($student) || $student->type eq 'String');
     $ans->{typeError} = 1;
     $ans->{ans_message} = $ans->{error_message} =
-      "Your answer isn't ".lc($ans->{cmp_class})."\n".
-        "(it looks like ".lc($student->showClass).")"
+      "Your answer isn't ((".lc($ans->{cmp_class})."))\n".
+        "(it looks like ((".lc($student->showClass).")))"
 	   if !$ans->{isPreview} && $ans->{showTypeWarnings} && !$ans->{error_message};
   }
 }
@@ -849,7 +849,7 @@ sub cmp_postprocess {
   if ($ans->{showCoordinateHints}) {
     my @errors;
     foreach my $i (1..$self->length) {
-      push(@errors,"The ".$self->NameForNumber($i)." coordinate is incorrect")
+      push(@errors,"The ((".$self->NameForNumber($i).")) coordinate is incorrect")
 	if ($self->{data}[$i-1] != $student->{data}[$i-1]);
     }
     $self->cmp_Error($ans,@errors); return;
@@ -940,7 +940,7 @@ sub cmp_postprocess {
   if ($ans->{showCoordinateHints} && !$ans->{parallel}) {
     my @errors;
     foreach my $i (1..$self->length) {
-      push(@errors,"The ".$self->NameForNumber($i)." coordinate is incorrect")
+      push(@errors,"The ((".$self->NameForNumber($i).")) coordinate is incorrect")
 	if ($self->{data}[$i-1] != $student->{data}[$i-1]);
     }
     $self->cmp_Error($ans,@errors); return;
@@ -1409,7 +1409,7 @@ sub cmp_equal {
   #
   if ($requireParenMatch && ($sOpen ne $cOpen || $sClose ne $cClose)) {
     if ($showParenHints && !($ans->{ignoreStrings} && $student->type eq 'String')) {
-      my $message = "The parentheses for your $ltype ";
+      my $message = "The parentheses for your (($ltype)) ";
       if (($cOpen || $cClose) && ($sOpen || $sClose))
                                 {$message .= "are of the wrong type"}
       elsif ($sOpen || $sClose) {$message .= "should be removed"}
@@ -1447,9 +1447,9 @@ sub cmp_equal {
   #
   if ($showLengthHints) {
     $value =~ s/( or|,) /s$1 /g; # fix "interval or union"
-    push(@errors,"There should be more ${value}s in your $stype")
+    push(@errors,"There should be more ((${value}s)) in your (($stype))")
       if ($score < $maxscore && $score == $m);
-    push(@errors,"There should be fewer ${value}s in your $stype")
+    push(@errors,"There should be fewer ((${value}s)) in your (($stype))")
       if ($score < $maxscore && $score == $M && !$showHints);
   }
 
@@ -1507,12 +1507,12 @@ sub cmp_list_compare {
     #
     #  Some words differ if there is only one entry in the student's list
     #
-    my $nth = ''; my $answer = 'answer';
+    my $nth = ''; my $answer = '((answer))';
     my $class = $ans->{list_type} || $ans->{cmp_class};
     if ($m > 1) {
       $nth = ' '.$self->NameForNumber($i);
       $class = $ans->{cmp_class};
-      $answer = 'value';
+      $answer = '((value))';
     }
 
     #
@@ -1551,13 +1551,12 @@ sub cmp_list_compare {
                                              $typeMatch->typeMatch($entry,$ans);
     if ($showTypeWarnings && !$match &&
 	!($ans->{ignoreStrings} && $entry->classMatch('String'))) {
-      push(@errors,"Your$nth $answer isn't ".lc($class).
-	   " (it looks like ".lc($entry->showClass).")");
+      push(@errors,"Your$nth $answer isn't ((".lc($class).")) (it looks like ((".lc($entry->showClass).")))");
     } elsif ($error->{flag} && $ans->{showEqualErrors}) {
       my $message = $error->{message}; $message =~ s/\s+$//;
       if ($m > 1 && $error->{flag} != $CMP_WARNING) {
         push(@errors,"<SMALL>There is a problem with your$nth $value:</SMALL>",
-	             '<DIV STYLE="margin-left:1em">'.$message.'</DIV>');
+	             '<DIV STYLE="margin-left:1em">(('.$message.'))</DIV>');
       } else {push(@errors,$message)}
     } elsif ($showHints && $m > 1) {
       push(@errors,"Your$nth $value is incorrect");
