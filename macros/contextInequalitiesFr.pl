@@ -486,7 +486,7 @@ our @ISA = ("Parser::BOP::add");
 sub _check {
   my $self = shift;
   $self->SUPER::_check(@_);
-  $self->Error("On ne peut pas additionner des inégalités (vouliez-vous utiliser le 'ou'?)")
+  $self->Error("On ne peut pas additionner des inÃ©galitÃ©s (vouliez-vous utiliser le 'ou'?)")
     if $self->{lop}{isInequality} || $self->{rop}{isInequality};
 }
 
